@@ -1,0 +1,46 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: ''
+Resources:
+  SnsTopic:
+    Type: 'AWS::SNS::Topic'
+    Properties:
+      Subscription:
+        - Endpoint: email@example.com
+          Protocol: email
+      TopicName: alarm-action
+  CloudWatchAlarm:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmName: kms_key_operations
+      AlarmDescription: >-
+        A CloudWatch Alarm that triggers on changes to customer created CMKs:
+        Key creation, deletion, or enabling/disabling operations, imported key
+        material operations, as well as updates to CMK Key policies.
+      MetricName: KMSCustomerKeyUpdates
+      Namespace: CloudTrailMetrics
+      Statistic: Sum
+      Period: '60'
+      EvaluationPeriods: '1'
+      Threshold: '1'
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      AlarmActions:
+        - Ref: SnsTopic
+      TreatMissingData: notBreaching
+  MetricFilter:
+    Type: 'AWS::Logs::MetricFilter'
+    Properties:
+      LogGroupName: ''
+      FilterPattern: >-
+        { ($.eventSource = kms.amazonaws.com) &&  (($.eventName=DisableKey) ||
+        ($.eventName=ScheduleKeyDeletion) || ($.eventName=CancelKeyDeletion) ||
+        ($.eventName=CreateKey) || ($.eventName=CreateAlias) ||
+        ($.eventName=EnableKey) || ($.eventName=PutKeyPolicy) ||
+        ($.eventName=ImportKeyMaterial) ||
+        ($.eventName=DeleteImportedKeyMaterial)) }
+      MetricTransformations:
+        - MetricValue: '1'
+          MetricNamespace: CloudTrailMetrics
+          MetricName: KMSCustomerKeyUpdates
+Parameters: {}
+Metadata: {}
+Conditions: {}
